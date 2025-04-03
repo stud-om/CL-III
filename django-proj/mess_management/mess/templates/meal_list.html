@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Meal List</h2>
+
+<form id="meal-form" method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Add Meal</button>
+</form>
+
+<table class="table table-striped mt-3">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="meal-table">
+        {% for meal in meals %}
+        <tr id="meal-{{ meal.id }}">
+            <td class="meal-name">{{ meal.name }}</td>
+            <td class="meal-price">{{ meal.price }}</td>
+            <td class="meal-date">{{ meal.date }}</td>
+            <td>
+                <button class="btn btn-warning btn-sm edit-btn" data-id="{{ meal.id }}">Edit</button>
+                <button class="btn btn-danger btn-sm delete-btn" data-id="{{ meal.id }}">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    // Handle Add Meal
+    document.getElementById('meal-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        let formData = new FormData(this);
+
+        fetch("", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRFToken": document.getElementsByName("csrfmiddlewaretoken")[0].value
+            }
+        }).then(response => response.json())
+        .then(data => {
+            let row = `<tr id="meal-${data.id}">
+                <td class="meal-name">${data.name}</td>
+                <td class="meal-price">${data.price}</td>
+                <td class="meal-date">${data.date}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm edit-btn" data-id="${data.id}">Edit</button>
+                    <button class="btn btn-danger btn-sm delete-btn" data-id="${data.id}">Delete</button>
+                </td>
+            </tr>`;
+            document.getElementById("meal-table").innerHTML += row;
+            document.getElementById("meal-form").reset();
+        });
+    });
+
+    // Handle Delete Meal
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-btn')) {
+            let mealId = e.target.dataset.id;
+            
+            fetch(`/delete/${mealId}/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": document.getElementsByName("csrfmiddlewaretoken")[0].value
+                }
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById(`meal-${mealId}`).remove();
+                }
+            });
+        }
+    });
+
+    // Handle Edit Meal
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('edit-btn')) {
+            let mealId = e.target.dataset.id;
+            let row = document.getElementById(`meal-${mealId}`);
+            let name = row.querySelector('.meal-name').innerText;
+            let price = row.querySelector('.meal-price').innerText;
+            let date = row.querySelector('.meal-date').innerText;
+
+            let newName = prompt("Update Meal Name:", name);
+            let newPrice = prompt("Update Price:", price);
+            let newDate = prompt("Update Date (YYYY-MM-DD):", date);
+
+            if (newName && newPrice && newDate) {
+                fetch(`/update/${mealId}/`, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": document.getElementsByName("csrfmiddlewaretoken")[0].value,
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: `name=${newName}&price=${newPrice}&date=${newDate}`
+                }).then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        row.querySelector('.meal-name').innerText = newName;
+                        row.querySelector('.meal-price').innerText = newPrice;
+                        row.querySelector('.meal-date').innerText = newDate;
+                    }
+                });
+            }
+        }
+    });
+</script>
+
+{% endblock %}
